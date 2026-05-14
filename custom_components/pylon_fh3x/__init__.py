@@ -22,9 +22,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     port = entry.data[CONF_PORT]
 
     # Initialize coordinator
-    coordinator = PylontechCoordinator(hass, host, port)
+    coordinator = PylontechCoordinator(hass, host, port, entry.entry_id)
 
-    
     await coordinator.async_config_entry_first_refresh()
 
     

@@ -68,7 +68,7 @@ NUMBER_TYPES: tuple[PylontechNumberEntityDescription, ...] = (
         native_unit_of_measurement="W",
         device_class=None,
 
-        native_min_value=-20000,
+        native_min_value=-50000,
         native_max_value=-1,
         native_step=100,
         register_address=40401,

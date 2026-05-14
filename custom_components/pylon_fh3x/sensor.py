@@ -85,6 +85,12 @@ SENSOR_TYPES: tuple[SensorEntityDescription, ...] = (
         device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.TOTAL_INCREASING,
     ),
+    SensorEntityDescription(
+        key="system_pv_total_power", name="System PV Total Power",
+        native_unit_of_measurement=UnitOfPower.WATT,
+        device_class=SensorDeviceClass.POWER,
+        state_class=SensorStateClass.MEASUREMENT,
+    ),
 
     # --- Vermogen & Net ---
     SensorEntityDescription(
@@ -240,6 +246,106 @@ SENSOR_TYPES: tuple[SensorEntityDescription, ...] = (
 )
 
 
+SENSOR_TYPES_SECONDARY: tuple[SensorEntityDescription, ...] = (
+    SensorEntityDescription(
+        key="secondary_inverter_status",
+        name="Inverter 2 Status",
+        icon="mdi:information-outline",
+    ),
+    SensorEntityDescription(
+        key="secondary_ac_total_power",
+        name="Inverter 2 AC Total Power",
+        native_unit_of_measurement=UnitOfPower.WATT,
+        device_class=SensorDeviceClass.POWER,
+        state_class=SensorStateClass.MEASUREMENT,
+    ),
+    SensorEntityDescription(
+        key="secondary_pv1_voltage",
+        name="Inverter 2 PV1 Voltage",
+        native_unit_of_measurement=UnitOfElectricPotential.VOLT,
+        device_class=SensorDeviceClass.VOLTAGE,
+        state_class=SensorStateClass.MEASUREMENT,
+    ),
+    SensorEntityDescription(
+        key="secondary_pv2_voltage",
+        name="Inverter 2 PV2 Voltage",
+        native_unit_of_measurement=UnitOfElectricPotential.VOLT,
+        device_class=SensorDeviceClass.VOLTAGE,
+        state_class=SensorStateClass.MEASUREMENT,
+    ),
+    SensorEntityDescription(
+        key="secondary_pv3_voltage",
+        name="Inverter 2 PV3 Voltage",
+        native_unit_of_measurement=UnitOfElectricPotential.VOLT,
+        device_class=SensorDeviceClass.VOLTAGE,
+        state_class=SensorStateClass.MEASUREMENT,
+    ),
+    SensorEntityDescription(
+        key="secondary_pv1_current",
+        name="Inverter 2 PV1 Current",
+        native_unit_of_measurement=UnitOfElectricCurrent.AMPERE,
+        device_class=SensorDeviceClass.CURRENT,
+        state_class=SensorStateClass.MEASUREMENT,
+    ),
+    SensorEntityDescription(
+        key="secondary_pv2_current",
+        name="Inverter 2 PV2 Current",
+        native_unit_of_measurement=UnitOfElectricCurrent.AMPERE,
+        device_class=SensorDeviceClass.CURRENT,
+        state_class=SensorStateClass.MEASUREMENT,
+    ),
+    SensorEntityDescription(
+        key="secondary_pv3_current",
+        name="Inverter 2 PV3 Current",
+        native_unit_of_measurement=UnitOfElectricCurrent.AMPERE,
+        device_class=SensorDeviceClass.CURRENT,
+        state_class=SensorStateClass.MEASUREMENT,
+    ),
+    SensorEntityDescription(
+        key="secondary_pv1_power",
+        name="Inverter 2 PV1 Power",
+        native_unit_of_measurement=UnitOfPower.WATT,
+        device_class=SensorDeviceClass.POWER,
+        state_class=SensorStateClass.MEASUREMENT,
+    ),
+    SensorEntityDescription(
+        key="secondary_pv2_power",
+        name="Inverter 2 PV2 Power",
+        native_unit_of_measurement=UnitOfPower.WATT,
+        device_class=SensorDeviceClass.POWER,
+        state_class=SensorStateClass.MEASUREMENT,
+    ),
+    SensorEntityDescription(
+        key="secondary_pv3_power",
+        name="Inverter 2 PV3 Power",
+        native_unit_of_measurement=UnitOfPower.WATT,
+        device_class=SensorDeviceClass.POWER,
+        state_class=SensorStateClass.MEASUREMENT,
+    ),
+    SensorEntityDescription(
+        key="secondary_grid_voltage_r",
+        name="Inverter 2 Grid Voltage R",
+        native_unit_of_measurement=UnitOfElectricPotential.VOLT,
+        device_class=SensorDeviceClass.VOLTAGE,
+        state_class=SensorStateClass.MEASUREMENT,
+    ),
+    SensorEntityDescription(
+        key="secondary_grid_voltage_s",
+        name="Inverter 2 Grid Voltage S",
+        native_unit_of_measurement=UnitOfElectricPotential.VOLT,
+        device_class=SensorDeviceClass.VOLTAGE,
+        state_class=SensorStateClass.MEASUREMENT,
+    ),
+    SensorEntityDescription(
+        key="secondary_grid_voltage_t",
+        name="Inverter 2 Grid Voltage T",
+        native_unit_of_measurement=UnitOfElectricPotential.VOLT,
+        device_class=SensorDeviceClass.VOLTAGE,
+        state_class=SensorStateClass.MEASUREMENT,
+    ),
+)
+
+
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: ConfigEntry,
@@ -248,11 +354,16 @@ async def async_setup_entry(
     """Set up Pylontech sensor based on a config entry."""
     coordinator = hass.data[DOMAIN][entry.entry_id]
 
-    # Maak voor elke definitie hierboven een PylontechSensor object aan
     entities = [
         PylontechSensor(coordinator, description, entry)
         for description in SENSOR_TYPES
     ]
+
+    if coordinator.has_secondary:
+        entities += [
+            PylontechSensor(coordinator, description, entry)
+            for description in SENSOR_TYPES_SECONDARY
+        ]
 
     async_add_entities(entities)
 

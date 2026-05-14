@@ -122,9 +122,13 @@ class PylontechCoordinator(DataUpdateCoordinator):
 
         if not self.has_secondary:
             self.has_secondary = True
-            self.hass.async_create_task(
-                self.hass.config_entries.async_reload(self.entry_id)
-            )
+            # Only reload when platform setup already ran with has_secondary=False;
+            # during the initial first refresh (self.data is None) the upcoming
+            # platform setup will pick up has_secondary=True naturally.
+            if self.data is not None:
+                self.hass.async_create_task(
+                    self.hass.config_entries.async_reload(self.entry_id)
+                )
 
     async def _async_update_data(self):
         """Fetch data from the inverter via Modbus."""
@@ -307,13 +311,13 @@ class PylontechCoordinator(DataUpdateCoordinator):
             if r_bms_soh: data["bms_soh"] = get_16bit_uint(r_bms_soh, 0)
 
             
+            if not data:
+                raise UpdateFailed("No data received out of inverter.")
+
             try:
                 await self._probe_and_read_secondary(data)
             except ModbusException as sec_err:
                 _LOGGER.debug("Secondary inverter probe failed: %s", sec_err)
-
-            if not data:
-                raise UpdateFailed("No data received out of inverter.")
 
             return data
 

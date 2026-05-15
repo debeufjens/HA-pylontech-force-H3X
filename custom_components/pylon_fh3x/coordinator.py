@@ -29,9 +29,6 @@ def get_32bit_int(regs, idx):
 def get_32bit_float(regs, idx):
     return struct.unpack('>f', struct.pack('>HH', regs[idx], regs[idx+1]))[0]
 
-def get_32bit_uint(regs, idx):
-    return struct.unpack('>I', struct.pack('>HH', regs[idx], regs[idx+1]))[0]
-
 
 async def _modbus_read(client, address, count, target_id):
     
@@ -76,11 +73,12 @@ class PylontechCoordinator(DataUpdateCoordinator):
     async def _probe_and_read_secondary(self, data: dict) -> None:
         """Read mirrored slave inverter block 30600–30647 on slave id 2.
 
-        One coalesced read covers detection (grid voltages), the per-phase AC
-        powers, the system-wide PV aggregate at 30632–30633, and the slave's
-        per-string PV voltage/current. system_pv_total_power is populated
-        whenever the block reads cleanly, regardless of slave-presence; the
-        other secondary_* keys only when grid voltages validate.
+        One coalesced 48-register read covers detection (grid voltages),
+        status, battery current/power, candidate inverter temperature,
+        per-string PV voltage/current, and the master-reported
+        system_pv_total_power (30632–30633). system_pv_total_power is
+        populated whenever the block reads cleanly; the other secondary_*
+        keys only when grid voltages validate.
         """
         regs = await self.safe_read(30600, 48, 2)
         if regs is None:
@@ -89,7 +87,7 @@ class PylontechCoordinator(DataUpdateCoordinator):
                 self.has_secondary = False
             return
 
-        data["system_pv_total_power"] = get_32bit_uint(regs, 32)
+        data["system_pv_total_power"] = get_32bit_int(regs, 32)
 
         grid_v = [regs[i] * 0.1 for i in (15, 16, 17)]
         detected = (
@@ -104,21 +102,18 @@ class PylontechCoordinator(DataUpdateCoordinator):
 
         self._secondary_miss_count = 0
         data["secondary_inverter_status"] = get_16bit_uint(regs, 0)
-        data["secondary_ac_total_power"] = (
-            get_32bit_int(regs, 9) + get_32bit_int(regs, 11) + get_32bit_int(regs, 13)
-        )
+        data["secondary_battery_current"] = get_16bit_int(regs, 6) * 0.1
+        data["secondary_inverter_temperature"] = get_16bit_uint(regs, 8) * 0.1
         data["secondary_grid_voltage_r"] = grid_v[0]
         data["secondary_grid_voltage_s"] = grid_v[1]
         data["secondary_grid_voltage_t"] = grid_v[2]
+        data["secondary_battery_power"] = get_32bit_int(regs, 34)
         data["secondary_pv1_current"] = get_32bit_int(regs, 36) * 0.01
         data["secondary_pv2_current"] = get_32bit_int(regs, 38) * 0.01
         data["secondary_pv3_current"] = get_32bit_int(regs, 40) * 0.01
         data["secondary_pv1_voltage"] = get_32bit_int(regs, 42) * 0.1
         data["secondary_pv2_voltage"] = get_32bit_int(regs, 44) * 0.1
         data["secondary_pv3_voltage"] = get_32bit_int(regs, 46) * 0.1
-        data["secondary_pv1_power"] = data["secondary_pv1_voltage"] * data["secondary_pv1_current"]
-        data["secondary_pv2_power"] = data["secondary_pv2_voltage"] * data["secondary_pv2_current"]
-        data["secondary_pv3_power"] = data["secondary_pv3_voltage"] * data["secondary_pv3_current"]
 
         if not self.has_secondary:
             self.has_secondary = True
@@ -318,6 +313,11 @@ class PylontechCoordinator(DataUpdateCoordinator):
                 await self._probe_and_read_secondary(data)
             except ModbusException as sec_err:
                 _LOGGER.debug("Secondary inverter probe failed: %s", sec_err)
+
+            if "battery_power" in data:
+                data["total_battery_power"] = (
+                    data["battery_power"] + data.get("secondary_battery_power", 0)
+                )
 
             return data
 
